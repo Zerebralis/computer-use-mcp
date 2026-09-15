@@ -103,8 +103,38 @@ export async function handleWindowTool(
 
   if (tool === 'open_application') {
     const bundleId = stringArg(args, 'bundle_id')
-    const result = native.activateApp(bundleId, 3_000)
-    if (result.activated) targets.update({ bundleId }, 'activation')
+    let result = native.activateApp(bundleId, 500)
+    if (result.activated) {
+      targets.update({ bundleId }, 'activation')
+      return ok(`Opened ${bundleId} (activated: true)`)
+    }
+
+    if (isWindows) {
+      // Windows activateApp intentionally activates an existing top-level window;
+      // it does not launch a missing process. Keep open_application honest by
+      // launching only a bounded executable basename, never a path or shell text.
+      if (!/^[A-Za-z0-9][A-Za-z0-9._ -]{0,126}\.exe$/i.test(bundleId)) {
+        return { content: [{ type: 'text', text: 'Invalid Windows application name: expected executable basename such as notepad.exe' }], isError: true }
+      }
+      const launch = await context.runScript(
+        'powershell',
+        `$ErrorActionPreference='Stop'; $p=Start-Process -FilePath '${bundleId}' -PassThru; [Console]::Out.Write($p.Id)`,
+        5_000,
+      )
+      if (launch.timedOut || launch.code !== 0) {
+        return { content: [{ type: 'text', text: `Failed to open ${bundleId}` }], isError: true }
+      }
+      for (let attempt = 0; attempt < 30; attempt++) {
+        result = native.activateApp(bundleId, 100)
+        if (result.activated) {
+          targets.update({ bundleId }, 'activation')
+          return ok(`Opened ${bundleId} (activated: true)`)
+        }
+        await context.sleep(100)
+      }
+      return { content: [{ type: 'text', text: `Application launched but no activatable window appeared: ${bundleId}` }], isError: true }
+    }
+
     await context.sleep(300)
     return ok(`Opened ${bundleId} (activated: ${result.activated})`)
   }
