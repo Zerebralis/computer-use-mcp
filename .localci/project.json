@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "trust": "PUBLIC_OWNER_CODE",
+  "allowed_executors": [
+    "linux_docker"
+  ],
+  "physical_runtime_required": false,
+  "resource_class": "standard",
+  "max_timeout_seconds": 300,
+  "linux_docker": {
+    "image": "node@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6",
+    "gates": {
+      "package-metadata": [
+        "node",
+        "-e",
+        "const p=require('./package.json'); if(p.name!=='@zavora-ai/computer-use-mcp'||p.version!=='7.1.0'||p.engines?.node!=='>=20') process.exit(1); console.log('COMPUTER_USE_PACKAGE_METADATA_OK')"
+      ],
+      "server-syntax": [
+        "node",
+        "--check",
+        "src/server.ts"
+      ],
+      "session-syntax": [
+        "node",
+        "--check",
+        "src/session.ts"
+      ],
+      "fs-jail-syntax": [
+        "node",
+        "--check",
+        "src/session/fs-jail.ts"
+      ],
+      "legacy-policy-syntax": [
+        "node",
+        "--check",
+        "src/session/legacy-policy.ts"
+      ]
+    }
+  }
+}
